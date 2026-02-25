@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Map Pool Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1a1f2e;
+    --bg2: #1f2535;
+    --bg3: #252c3d;
+    --bg4: #2d3650;
+    --border: #3a4460;
+    --border-bright: #4a5880;
+    --accent: #5b8dee;
+    --accent-glow: rgba(91,141,238,0.15);
+    --text: #d8e0f0;
+    --text-dim: #8896b3;
+    --text-bright: #eef2ff;
+    --nm: #6ec6f5;
+    --hd: #f5c56e;
+    --hr: #f57a6e;
+    --dt: #a56ef5;
+    --fm: #6ef5b2;
+    --tb: #f56ea8;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  header { margin-bottom: 48px; }
+
+  .logo-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-bright);
+    text-transform: uppercase;
+  }
+
+  .version-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    background: var(--accent-glow);
+    border: 1px solid rgba(91,141,238,0.3);
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.1em;
+  }
+
+  .subtitle { font-size: 0.85rem; color: var(--text-dim); letter-spacing: 0.05em; }
+
+  /* Search */
+  .search-section { margin-bottom: 40px; }
+
+  .search-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .search-wrapper { position: relative; max-width: 560px; }
+
+  .search-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px 12px 44px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    color: var(--text-bright);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .search-input::placeholder { color: var(--text-dim); }
+
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    pointer-events: none;
+  }
+
+  .dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: var(--bg3);
+    border: 1px solid var(--border-bright);
+    border-radius: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .dropdown.open { display: block; }
+  .dropdown::-webkit-scrollbar { width: 5px; }
+  .dropdown::-webkit-scrollbar-track { background: transparent; }
+  .dropdown::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+  .dropdown-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text);
+    transition: background 0.1s, color 0.1s;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .dropdown-item:last-child { border-bottom: none; }
+  .dropdown-item:hover, .dropdown-item.active { background: var(--bg4); color: var(--text-bright); }
+
+  .dropdown-item .pool-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.03em;
+  }
+
+  .dropdown-item .pool-elo {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+
+  .status-bar {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-top: 8px;
+    height: 18px;
+    transition: color 0.3s;
+  }
+
+  .status-bar.loading { color: var(--accent); }
+  .status-bar.error   { color: #f57a6e; }
+  .status-bar.ok      { color: #6ef5b2; }
+
+  /* Pool view */
+  .pool-view { display: none; animation: fadeUp 0.3s ease; }
+  .pool-view.visible { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .pool-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pool-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-bright);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .pool-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  /* Multiple pools */
+  .pools-container { display: flex; flex-direction: column; gap: 0; }
+
+  .pool-block {
+    animation: slideDown 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    transform-origin: top;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-24px) scaleY(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+  }
+
+  .pool-block.removing {
+    animation: slideUp 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+    overflow: hidden;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+      max-height: 2000px;
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-16px) scaleY(0.95);
+      max-height: 0;
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+  .pool-divider {
+    animation: fadeIn 0.3s ease 0.1s both;
+  }
+
+  .pool-divider.removing {
+    animation: fadeOut 0.25s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+
+  .pool-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 40px 0;
+  }
+
+  .pool-divider-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-bright), transparent);
+  }
+
+  .pool-divider-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--border-bright);
+    text-transform: uppercase;
+  }
+
+  .pool-block-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pool-block-header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  .pool-remove-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+
+  .pool-remove-btn:hover { border-color: #f57a6e; color: #f57a6e; }
+
+  /* Category sections */
+  .category-section { margin-bottom: 32px; }
+
+  .category-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .category-pill {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 12px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+
+  .cat-nm .category-pill { color: var(--nm); border-color: var(--nm); background: rgba(110,198,245,0.08); }
+  .cat-hd .category-pill { color: var(--hd); border-color: var(--hd); background: rgba(245,197,110,0.08); }
+  .cat-hr .category-pill { color: var(--hr); border-color: var(--hr); background: rgba(245,122,110,0.08); }
+  .cat-dt .category-pill { color: var(--dt); border-color: var(--dt); background: rgba(165,110,245,0.08); }
+  .cat-fm .category-pill { color: var(--fm); border-color: var(--fm); background: rgba(110,245,178,0.08); }
+  .cat-tb .category-pill { color: var(--tb); border-color: var(--tb); background: rgba(245,110,168,0.08); }
+
+  .category-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  /* Map rows */
+  .map-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .map-row {
+    display: flex;
+    align-items: stretch;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+    min-height: 72px;
+  }
+
+  .map-row::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    z-index: 2;
+  }
+
+  .cat-nm .map-row::before { background: var(--nm); }
+  .cat-hd .map-row::before { background: var(--hd); }
+  .cat-hr .map-row::before { background: var(--hr); }
+  .cat-dt .map-row::before { background: var(--dt); }
+  .cat-fm .map-row::before { background: var(--fm); }
+  .cat-tb .map-row::before { background: var(--tb); }
+
+  .map-row:hover { border-color: var(--border-bright); background: var(--bg3); }
+
+  /* Cover image */
+  .map-cover {
+    width: 108px;
+    min-width: 108px;
+    background: var(--bg4);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .map-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.35s;
+  }
+
+  .map-cover img.loaded { opacity: 1; }
+
+  .map-cover-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border);
+    z-index: 0;
+  }
+
+  .map-cover img {
+    position: relative;
+    z-index: 1;
+  }
+
+  .map-num {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    color: rgba(255,255,255,0.55);
+    z-index: 2;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  }
+
+  /* Map body */
+  .map-body {
+    flex: 1;
+    padding: 11px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .map-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .map-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-bright);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .map-sep {
+    color: var(--border-bright);
+    font-size: 0.85rem;
+    padding: 0 10px;
+    flex-shrink: 0;
+  }
+
+  .map-score {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .map-sub-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .map-sr, .map-bpm {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  .map-sub-sep {
+    color: var(--border);
+    font-size: 0.7rem;
+  }
+
+  .map-comment {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  .map-loading {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 0.3; }
+    50%       { opacity: 0.8; }
+  }
+
+  /* Score colours handled via inline style from getScoreColor() */
+
+  /* Empty / cache */
+  .empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text-dim);
+  }
+
+  .empty-state svg { opacity: 0.2; margin-bottom: 16px; }
+
+  .empty-state p {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+  }
+
+  .cache-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    margin-left: 8px;
+  }
+
+  .cache-badge:hover { border-color: var(--border-bright); color: var(--text); }
+
+  .cache-badge .dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #6ef5b2;
+  }
+
+  .cache-badge .dot.stale { background: #f5c56e; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo-row">
+      <h1>Map Pool Viewer</h1>
+      <span class="version-tag">BETA</span>
+      <span id="cacheBadgePools" class="cache-badge" onclick="clearPoolsCache()" title="Click to clear pools cache">
+        <span class="dot" id="cacheDotPools"></span>
+        <span id="cacheLabelPools">POOLS</span>
+      </span>
+      <span id="cacheBadgeScores" class="cache-badge" onclick="clearScoresCache()" title="Click to clear scores cache">
+        <span class="dot" id="cacheDotScores"></span>
+        <span id="cacheLabelScores">SCORES</span>
+      </span>
+    </div>
+    <p class="subtitle">Search a pool to view its maps and scores</p>
+  </header>
+
+  <div class="search-section">
+    <label class="search-label" for="poolSearch">Pool Name</label>
+    <div class="search-wrapper">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" id="poolSearch" class="search-input" placeholder="Type to search pools..." autocomplete="off" spellcheck="false"/>
+      <div class="dropdown" id="dropdown"></div>
+    </div>
+    <div class="status-bar" id="statusBar">Initializing...</div>
+  </div>
+
+  <div class="pool-view" id="poolView">
+    <div class="pools-container" id="poolsContainer"></div>
+  </div>
+
+  <div class="empty-state" id="emptyState">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+    </svg>
+    <p>NO POOL SELECTED</p>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const PROXY        = 'https://script.google.com/macros/s/AKfycbw0SPAR00YU0X2Z1RplLSj5ExUvUtDJEzwXScy5JVbD0GhrsZbRIl0bvNjAt_h0uaXn/exec';
+const POOL_TABS = [
+  { name: '1500', gid: '0' },
+  { name: '1600', gid: '1078875662' },
+  { name: '1700', gid: '1788254711' },
+  { name: '1800', gid: '1253646153' },
+];
+const SCORE_TABS = [
+  { name: 'nm1',   gid: '868418815' },
+  { name: 'nm2',   gid: '458630398' },
+  { name: 'nm3',   gid: '2021670014' },
+  { name: 'nm4',   gid: '1137615268' },
+  { name: 'nm5/6', gid: '1412097864' },
+  { name: 'hd1',   gid: '1280354368' },
+  { name: 'hd2',   gid: '326502377' },
+  { name: 'hr1',   gid: '811694452' },
+  { name: 'hr2',   gid: '2053745936' },
+  { name: 'hr3',   gid: '1944906320' },
+  { name: 'dt1',   gid: '1284559838' },
+  { name: 'dt2/3', gid: '1353339214' },
+];
+const CACHE_KEY_POOLS  = 'mpool_pools_v1';
+const CACHE_KEY_SCORES = 'mpool_scores_v6';
+const CACHE_TTL_POOLS  = 60 * 60 * 1000;  // 1 hour (pools rarely change)
+const CACHE_TTL_SCORES = 10 * 60 * 1000;  // 10 minutes (scores update often)
+// Cols (0-indexed): B=1 image, C=2 name, D=3 score, E=4 difficulty, F=5 bpm, I=8 map ID
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let poolsData = [];
+let scoresMap = {}; // keyed by map ID from col I
+
+// ─── CSV ──────────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  return text.trim().split('\n').map(line => {
+    const cols = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+// ─── CACHE ────────────────────────────────────────────────────────────────────
+function savePoolsCache(data) {
+  try { localStorage.setItem(CACHE_KEY_POOLS, JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
+}
+
+function loadPoolsCache() {
+  try { const r = localStorage.getItem(CACHE_KEY_POOLS); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+}
+
+function saveScoresCache(data) {
+  try { localStorage.setItem(CACHE_KEY_SCORES, JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
+}
+
+function loadScoresCache() {
+  try { const r = localStorage.getItem(CACHE_KEY_SCORES); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+}
+
+function clearPoolsCache() {
+  localStorage.removeItem(CACHE_KEY_POOLS);
+  setStatus('Pools cache cleared — reloading...', 'loading');
+  location.reload();
+}
+
+function clearScoresCache() {
+  localStorage.removeItem(CACHE_KEY_SCORES);
+  setStatus('Scores cache cleared — reloading...', 'loading');
+  location.reload();
+}
+
+function updateCacheBadge(which, ts, ttl) {
+  const dot = document.getElementById(`cacheDot${which}`);
+  const lbl = document.getElementById(`cacheLabel${which}`);
+  if (!dot || !lbl) return;
+  if (!ts) { dot.className = 'dot'; lbl.textContent = `${which} LIVE`; return; }
+  const age = Date.now() - ts;
+  const mins = Math.floor(age / 60000);
+  dot.className = age < ttl ? 'dot' : 'dot stale';
+  lbl.textContent = mins < 1 ? `${which} <1m` : `${which} ${mins}m`;
+}
+
+// ─── FETCH ────────────────────────────────────────────────────────────────────
+async function fetchCSV(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const r = await fetch(url, {
+      redirect: 'follow',
+      mode: 'cors',
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const text = await r.text();
+    console.log(`[fetchCSV] ${url.slice(-60)} => ${text.length} chars, starts: ${text.slice(0,80)}`);
+    return text;
+  } catch(e) {
+    clearTimeout(timeout);
+    console.error(`[fetchCSV] FAILED: ${url.slice(-60)}`, e.message);
+    throw e;
+  }
+}
+
+
+
+async function fetchPoolsData() {
+  const allTabResults = [];
+
+  const tasks = POOL_TABS.map((tab, tabIndex) => pool(async () => {
+    const url = `${PROXY}?type=pools&gid=${tab.gid}`;
+    try {
+      const text = await fetchCSV(url);
+      const rows = parseCSV(text);
+      if (rows.length < 2) return;
+
+      const headers = rows[0];
+      const tabPools = [];
+
+      for (let r = 1; r < rows.length; r++) {
+        const row  = rows[r];
+        const elo  = (row[0] || '').trim();
+        const name = (row[1] || '').trim();
+        if (!name && row.every(c => !c)) continue;
+
+        const mapsByCategory = {};
+        for (let c = 2; c < headers.length; c++) {
+          const cat   = (headers[c] || '').trim();
+          const mapId = (row[c] || '').trim();
+          if (!cat || !mapId) continue;
+          if (!mapsByCategory[cat]) mapsByCategory[cat] = [];
+          mapsByCategory[cat].push(mapId);
+        }
+        tabPools.push({ name: name || `Pool ${r}`, elo, mapsByCategory });
+      }
+
+      allTabResults[tabIndex] = tabPools;
+    } catch (e) {
+      console.warn('Failed pools tab', tab.name, e);
+    }
+  }));
+
+  await Promise.all(tasks);
+
+  // Flatten in original tab order
+  return allTabResults.flat().filter(Boolean);
+}
+
+async function fetchScoresData() {
+  const result = {};
+
+  // Launch ALL 12 tabs in parallel (pool limits to 4 at a time)
+  const tasks = SCORE_TABS.map(tab => pool(async () => {
+    try {
+      const text = await fetchCSV(`${PROXY}?type=scores&gid=${tab.gid}`);
+      const rows = parseCSV(text);
+      let indexed = 0;
+
+      rows.forEach(row => {
+        const mapId = (row[8] || '').trim();
+        if (!mapId || !/^\d{5,10}$/.test(mapId)) return;
+
+        const osuUrl = (row[7] || '').trim();
+        const setIdMatch = osuUrl.match(/beatmapsets\/(\d+)/);
+        const beatmapsetId = setIdMatch ? setIdMatch[1] : '';
+
+        result[`${tab.name}:${mapId}`] = {
+          image:      beatmapsetId
+                        ? `https://assets.ppy.sh/beatmaps/${beatmapsetId}/covers/cover.jpg`
+                        : '',
+          name:       (row[2] || '').trim(),
+          score:      (row[3] || '').trim(),
+          difficulty: (row[4] || '').trim(),
+          bpm:        (row[5] || '').trim(),
+          comment:    (row[6] || '').trim(),
+        };
+        indexed++;
+      });
+
+      console.log(`[${tab.name}] ${rows.length} rows, ${indexed} indexed`);
+
+      // Update status bar progressively
+      const total = Object.keys(result).length;
+      const el = document.getElementById('statusBar');
+      if (el) {
+        el.dataset.base = `Loading scores... ${total} indexed (${tab.name} ✓)`;
+      }
+    } catch (e) {
+      console.warn(`[${tab.name}] failed:`, e.message);
+    }
+  }));
+
+  await Promise.all(tasks);
+  return result;
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+async function init() {
+  const cachedPools  = loadPoolsCache();
+  const cachedScores = loadScoresCache();
+
+  const needPools  = !cachedPools  || (Date.now() - cachedPools.ts)  >= CACHE_TTL_POOLS;
+  const needScores = !cachedScores || (Date.now() - cachedScores.ts) >= CACHE_TTL_SCORES;
+
+  // Start timer
+  const startTime = Date.now();
+  let timerInterval = null;
+  if (needPools || needScores) {
+    timerInterval = setInterval(() => {
+      const el = document.getElementById('statusBar');
+      if (el) {
+        const secs = ((Date.now() - startTime) / 1000).toFixed(1);
+        // preserve existing message, just append time
+        el.dataset.timer = secs;
+        const base = el.dataset.base || el.textContent.replace(/ \(\d+\.\ds\)$/, '');
+        el.dataset.base = base;
+        el.textContent = `${base} (${secs}s)`;
+      }
+    }, 100);
+  }
+
+  const setStatusTimed = (msg, type) => {
+    setStatus(msg, type);
+    const el = document.getElementById('statusBar');
+    if (el) el.dataset.base = msg;
+  };
+
+  // Fetch pools and scores in parallel where possible
+  const poolsPromise = needPools
+    ? fetchPoolsData()
+        .then(data => { poolsData = data; savePoolsCache(data); updateCacheBadge('Pools', null, CACHE_TTL_POOLS); })
+        .catch(e => {
+          if (cachedPools) { poolsData = cachedPools.data; updateCacheBadge('Pools', cachedPools.ts, CACHE_TTL_POOLS); }
+          else throw e;
+        })
+    : Promise.resolve().then(() => { poolsData = cachedPools.data; updateCacheBadge('Pools', cachedPools.ts, CACHE_TTL_POOLS); });
+
+  const scoresPromise = needScores
+    ? fetchScoresData()
+        .then(data => { scoresMap = data; saveScoresCache(data); updateCacheBadge('Scores', null, CACHE_TTL_SCORES); })
+        .catch(e => {
+          if (cachedScores) { scoresMap = cachedScores.data; updateCacheBadge('Scores', cachedScores.ts, CACHE_TTL_SCORES); }
+        })
+    : Promise.resolve().then(() => { scoresMap = cachedScores.data; updateCacheBadge('Scores', cachedScores.ts, CACHE_TTL_SCORES); });
+
+  setStatusTimed('Fetching data...', 'loading');
+
+  try {
+    await Promise.all([poolsPromise, scoresPromise]);
+  } catch(e) {
+    clearInterval(timerInterval);
+    setStatus(`Error: ${e.message}`, 'error');
+    return;
+  }
+
+  clearInterval(timerInterval);
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const suffix = (needPools || needScores) ? ` — loaded in ${elapsed}s` : '';
+  setStatus(`${poolsData.length} pools · ${Object.keys(scoresMap).length} scores indexed${suffix}`, 'ok');
+  setupSearch();
+}
+
+// ─── SEARCH ───────────────────────────────────────────────────────────────────
+function matchScore(str, query) {
+  str = str.toLowerCase(); query = query.toLowerCase();
+  if (str === query) return 0;                        // exact
+  if (str.startsWith(query)) return 1;               // prefix
+  if (str.includes(query)) return 2;                 // substring
+  // fuzzy
+  let si = 0, qi = 0;
+  while (si < str.length && qi < query.length) { if (str[si] === query[qi]) qi++; si++; }
+  return qi === query.length ? 3 : -1;               // fuzzy or no match
+}
+
+function setupSearch() {
+  const input    = document.getElementById('poolSearch');
+  const dropdown = document.getElementById('dropdown');
+  let selectedIdx = -1;
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (!q) { dropdown.classList.remove('open'); return; }
+    const matches = poolsData
+      .map((p, i) => ({ p, i, score: matchScore(p.name, q) }))
+      .filter(({ score }) => score >= 0)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 12);
+    renderDropdown(matches, q);
+    selectedIdx = -1;
+  });
+
+  input.addEventListener('keydown', e => {
+    const items = dropdown.querySelectorAll('.dropdown-item');
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = (selectedIdx + 1) % items.length; }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = (selectedIdx - 1 + items.length) % items.length; }
+    else if (e.key === 'Enter') { if (selectedIdx >= 0) items[selectedIdx].click(); else if (items.length === 1) items[0].click(); return; }
+    else if (e.key === 'Escape') { dropdown.classList.remove('open'); return; }
+    items.forEach((el, i) => el.classList.toggle('active', i === selectedIdx));
+  });
+
+  document.addEventListener('click', e => { if (!e.target.closest('.search-wrapper')) dropdown.classList.remove('open'); });
+}
+
+function renderDropdown(matches, query) {
+  const dropdown = document.getElementById('dropdown');
+  if (!matches.length) {
+    dropdown.innerHTML = '<div class="dropdown-item"><span class="pool-name" style="color:var(--text-dim)">No results found</span></div>';
+  } else {
+    dropdown.innerHTML = matches.map(({ p, i }) =>
+      `<div class="dropdown-item" onclick="selectPool(${i})">
+        <span class="pool-name">${highlight(p.name, query)}</span>
+        <span class="pool-elo">${p.elo || ''}</span>
+      </div>`
+    ).join('');
+  }
+  dropdown.classList.add('open');
+}
+
+function highlight(str, query) {
+  const idx = str.toLowerCase().indexOf(query.toLowerCase());
+  if (idx < 0) return str;
+  return str.slice(0, idx) +
+    `<span style="color:var(--accent);font-weight:600">${str.slice(idx, idx + query.length)}</span>` +
+    str.slice(idx + query.length);
+}
+
+// ─── POOL DISPLAY ─────────────────────────────────────────────────────────────
+function removePool(blockId) {
+  const block = document.getElementById(blockId);
+  if (!block) return;
+
+  // Find adjacent divider (after block if it exists, else before)
+  const next = block.nextElementSibling;
+  const prev = block.previousElementSibling;
+  const divider = (next && next.classList.contains('pool-divider')) ? next
+                : (prev && prev.classList.contains('pool-divider')) ? prev
+                : null;
+
+  const cleanup = () => {
+    block.remove();
+    if (divider) divider.remove();
+    const container = document.getElementById('poolsContainer');
+    if (!container.children.length) {
+      document.getElementById('poolView').classList.remove('visible');
+      document.getElementById('emptyState').style.display = '';
+    }
+  };
+
+  block.classList.add('removing');
+  if (divider) divider.classList.add('removing');
+  block.addEventListener('animationend', cleanup, { once: true });
+}
+
+function selectPool(idx) {
+  const pool = poolsData[idx];
+  if (!pool) return;
+
+  document.getElementById('poolSearch').value = pool.name;
+  document.getElementById('dropdown').classList.remove('open');
+  document.getElementById('emptyState').style.display = 'none';
+
+  const container = document.getElementById('poolsContainer');
+  const blockId = 'pool_' + Math.random().toString(36).slice(2);
+
+  const totalMaps = Object.values(pool.mapsByCategory).reduce((a, b) => a + b.length, 0);
+  const block = document.createElement('div');
+  block.className = 'pool-block';
+  block.id = blockId;
+  block.innerHTML = `
+    <div class="pool-block-header">
+      <div class="pool-block-header-left">
+        <div class="pool-title">${escHtml(pool.name)}</div>
+        <div class="pool-meta">${pool.elo ? pool.elo + ' ELO · ' : ''}${totalMaps} maps</div>
+      </div>
+      <button class="pool-remove-btn" onclick="removePool('${blockId}')">✕ REMOVE</button>
+    </div>
+  `;
+
+  // New pool goes to the top
+  if (container.children.length > 0) {
+    // Insert divider after the new block (between new and old)
+    const divider = document.createElement('div');
+    divider.className = 'pool-divider';
+    divider.innerHTML = `<div class="pool-divider-line"></div><span class="pool-divider-label">↓ older</span><div class="pool-divider-line"></div>`;
+    container.insertBefore(divider, container.firstChild);
+    container.insertBefore(block, divider);
+  } else {
+    container.appendChild(block);
+  }
+
+  for (const [cat, mapIds] of Object.entries(pool.mapsByCategory)) {
+    if (!mapIds.length) continue;
+    const sheetName = cat.toLowerCase().replace(/\/.*/, '').replace(/\s/g, '');
+    const matchedIds = mapIds.filter(id => scoresMap[`${sheetName}:${id}`]);
+    if (!matchedIds.length) continue;
+    const catKey = getCatKey(cat);
+    const uid    = Math.random().toString(36).slice(2);
+    const section = document.createElement('div');
+    section.className = `category-section cat-${catKey}`;
+    section.innerHTML = `
+      <div class="category-header">
+        <span class="category-pill">${cat}</span>
+        <span class="category-count">${matchedIds.length} map${matchedIds.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="map-list" id="ml_${uid}"></div>
+    `;
+    block.appendChild(section);
+
+    const list = section.querySelector(`#ml_${uid}`);
+    matchedIds.forEach((mapId, i) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'map-row';
+      rowEl.innerHTML = buildMapRow(mapId, sheetName, i + 1);
+      list.appendChild(rowEl);
+    });
+  }
+
+  document.getElementById('poolView').classList.add('visible');}
+
+function buildMapRow(mapId, sheetName, index) {
+  const s = scoresMap[`${sheetName}:${mapId}`] || {};
+
+  // Cover: col B may be a URL or beatmapset ID; try it as-is
+  const coverUrl = s.image || '';
+  const coverHtml = coverUrl
+    ? `<img src="${escHtml(coverUrl)}" alt="" onload="this.classList.add('loaded')" onerror="this.style.display='none'"/>`
+    : '';
+
+  const scoreColor = s.score ? getScoreColor(s.score) : '';
+  const scoreHtml = s.score
+    ? `<span class="map-score" style="color:${scoreColor}">${escHtml(s.score)}</span>`
+    : `<span class="map-score" style="color:var(--text-dim)">—</span>`;
+
+  const title = s.name
+    ? escHtml(`${s.name} [${s.difficulty}]`)
+    : `<span style="color:var(--text-dim)">${mapId}</span>`;
+
+  const diffStr = s.difficulty ? escHtml(s.difficulty) : '';
+  const bpmStr  = s.bpm ? escHtml(s.bpm) + ' BPM' : '';
+  const subParts = [diffStr, bpmStr].filter(Boolean);
+  const subHtml = subParts.length ? subParts.join(' <span class="map-sub-sep">|</span> ') : '';
+
+  const commentHtml = s.comment
+    ? `<div class="map-comment">${escHtml(s.comment)}</div>` : '';
+
+  return `
+    <div class="map-cover">
+      <div class="map-cover-placeholder">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </div>
+      ${coverHtml}
+      <span class="map-num">#${index}</span>
+    </div>
+    <div class="map-body">
+      <div class="map-title-row">
+        <span class="map-title">${title}</span>
+        <span class="map-sep">|</span>
+        ${scoreHtml}
+      </div>
+      ${subHtml ? `<div class="map-sub-row">${subHtml}</div>` : ''}
+      ${commentHtml}
+    </div>
+  `;
+}
+
+function getCatKey(cat) {
+  const c = cat.toLowerCase();
+  if (c.startsWith('nm')) return 'nm';
+  if (c.startsWith('hd')) return 'hd';
+  if (c.startsWith('hr')) return 'hr';
+  if (c.startsWith('dt')) return 'dt';
+  if (c.startsWith('fm')) return 'fm';
+  if (c.startsWith('tb')) return 'tb';
+  return 'nm';
+}
+
+function getScoreColor(scoreStr) {
+  const n = parseFloat(String(scoreStr).replace(/,/g,'').replace(/[^0-9.]/g,''));
+  if (isNaN(n)) return '';
+  const clamped = Math.max(0, Math.min(1000000, n));
+
+  // Define stops: 0=red, 250k=yellow, 500k=green, 750k=teal, 1m+=blue
+  const stops = [
+    { t: 0,       r: 235, g: 75,  b: 75  }, // red
+    { t: 250000,  r: 235, g: 195, b: 75  }, // yellow
+    { t: 500000,  r: 100, g: 220, b: 120 }, // green
+    { t: 750000,  r: 75,  g: 210, b: 200 }, // teal
+    { t: 1000000, r: 100, g: 160, b: 255 }, // blue
+  ];
+
+  let lo = stops[0], hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (clamped >= stops[i].t && clamped <= stops[i+1].t) {
+      lo = stops[i]; hi = stops[i+1]; break;
+    }
+  }
+  const range = hi.t - lo.t || 1;
+  const frac  = (clamped - lo.t) / range;
+  const r = Math.round(lo.r + (hi.r - lo.r) * frac);
+  const g = Math.round(lo.g + (hi.g - lo.g) * frac);
+  const b = Math.round(lo.b + (hi.b - lo.b) * frac);
+  return `rgb(${r},${g},${b})`;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setStatus(msg, type = '') {
+  const el = document.getElementById('statusBar');
+  el.textContent = msg;
+  el.className = 'status-bar ' + type;
+}
+
+// ─── CONCURRENCY LIMITER ─────────────────────────────────────────────────────
+function createPool(concurrency) {
+  const queue = [];
+  let active = 0;
+
+  function run() {
+    while (active < concurrency && queue.length) {
+      active++;
+      const { fn, resolve, reject } = queue.shift();
+      fn().then(resolve, reject).finally(() => { active--; run(); });
+    }
+  }
+
+  return function enqueue(fn) {
+    return new Promise((resolve, reject) => {
+      queue.push({ fn, resolve, reject });
+      run();
+    });
+  };
+}
+
+// Allow 4 simultaneous requests (safe for Apps Script)
+const pool = createPool(4);
+
+// ─── BATCH FETCH HELPER ──────────────────────────────────────────────────────
+async function fetchBatchCSV(type, tabs) {
+  const gids = tabs.map(t => t.gid).join(',');
+  const url = `${PROXY}?type=${type}&gids=${gids}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000); // 60s for batch
+
+  try {
+    const r = await fetch(url, {
+      redirect: 'follow',
+      mode: 'cors',
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+    const text = await r.text();
+    console.log('[fetchBatchCSV] response length:', text.length,
+                'starts with:', text.slice(0, 80));
+
+    // Parse JSON — the response is { "gid": "csv", "gid": "csv", ... }
+    return JSON.parse(text);
+  } catch(e) {
+    clearTimeout(timeout);
+    console.error('[fetchBatchCSV] FAILED:', e.message);
+    throw e;
+  }
+}
+
+
+
+// ─── REPLACE fetchScoresData ─────────────────────────────────────────────────
+async function fetchScoresData() {
+  const result = {};
+
+  // ONE request fetches ALL 12 score tabs
+  const batchData = await fetchBatchCSV('scores', SCORE_TABS);
+
+  for (const tab of SCORE_TABS) {
+    const csv = batchData[tab.gid];
+    if (!csv) {
+      console.warn(`[${tab.name}] no data in batch response for gid ${tab.gid}`);
+      continue;
+    }
+
+    const rows = parseCSV(csv);
+    let indexed = 0;
+
+    rows.forEach(row => {
+      const mapId = (row[8] || '').trim();
+      if (!mapId || !/^\d{5,10}$/.test(mapId)) return;
+
+      const osuUrl = (row[7] || '').trim();
+      const setIdMatch = osuUrl.match(/beatmapsets\/(\d+)/);
+      const beatmapsetId = setIdMatch ? setIdMatch[1] : '';
+
+      result[`${tab.name}:${mapId}`] = {
+        image:      beatmapsetId
+                      ? `https://assets.ppy.sh/beatmaps/${beatmapsetId}/covers/cover.jpg`
+                      : '',
+        name:       (row[2] || '').trim(),
+        score:      (row[3] || '').trim(),
+        difficulty: (row[4] || '').trim(),
+        bpm:        (row[5] || '').trim(),
+        comment:    (row[6] || '').trim(),
+      };
+      indexed++;
+    });
+
+    console.log(`[${tab.name}] ${rows.length} rows, ${indexed} indexed`);
+    const total = Object.keys(result).length;
+    const el = document.getElementById('statusBar');
+    if (el) { el.dataset.base = `Loading scores... ${total} indexed (${tab.name} ✓)`; }
+  }
+
+  return result;
+}
+
+
+// ─── REPLACE fetchPoolsData ──────────────────────────────────────────────────
+async function fetchPoolsData() {
+  const result = [];
+
+  // ONE request fetches ALL 4 pool tabs
+  const batchData = await fetchBatchCSV('pools', POOL_TABS);
+
+  for (const tab of POOL_TABS) {
+    const csv = batchData[tab.gid];
+    if (!csv) {
+      console.warn(`[${tab.name}] no data in batch for gid ${tab.gid}`);
+      continue;
+    }
+
+    const rows = parseCSV(csv);
+    if (rows.length < 2) continue;
+    const headers = rows[0];
+
+    for (let r = 1; r < rows.length; r++) {
+      const row  = rows[r];
+      const elo  = (row[0] || '').trim();
+      const name = (row[1] || '').trim();
+      if (!name && row.every(c => !c)) continue;
+
+      const mapsByCategory = {};
+      for (let c = 2; c < headers.length; c++) {
+        const cat   = (headers[c] || '').trim();
+        const mapId = (row[c] || '').trim();
+        if (!cat || !mapId) continue;
+        if (!mapsByCategory[cat]) mapsByCategory[cat] = [];
+        mapsByCategory[cat].push(mapId);
+      }
+      result.push({ name: name || `Pool ${r}`, elo, mapsByCategory });
+    }
+  }
+
+  return result;
+}
+
+// ─── START ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
