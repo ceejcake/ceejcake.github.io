@@ -800,6 +800,164 @@
     padding: 16px 0;
     text-align: center;
   }
+
+  /* ── SR Chart ───────────────────────────────────────────────────────────── */
+  .sr-controls {
+    display: flex;
+    gap: 24px;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .sr-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sr-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text-bright);
+    outline: none;
+    width: 130px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .sr-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .sr-select {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 32px 8px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text-bright);
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238896b3' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    transition: border-color 0.2s;
+    min-width: 120px;
+  }
+
+  .sr-select:focus { border-color: var(--accent); }
+
+  .sr-chart-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .sr-y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-bottom: 22px;
+    min-width: 28px;
+    text-align: right;
+  }
+
+  .sr-y-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    line-height: 1;
+  }
+
+  .sr-chart-inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sr-chart {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    height: 120px;
+    position: relative;
+  }
+
+  /* gridlines drawn via pseudo-elements on sr-chart */
+  .sr-gridline {
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    background: var(--border);
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .sr-month-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+  }
+
+  .sr-quarter-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    flex: 1;
+    height: 100%;
+  }
+
+  .sr-bar {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: filter 0.15s, opacity 0.15s;
+    cursor: default;
+    position: relative;
+  }
+
+  .sr-bar:hover { filter: brightness(1.35); }
+  .sr-bar.empty { background: var(--bg3); opacity: 0.3; border-radius: 3px; min-height: 100%; }
+
+  .sr-month-sep {
+    width: 1px;
+    background: var(--border);
+    opacity: 0.5;
+    align-self: stretch;
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+
+  .sr-x-labels {
+    display: flex;
+    margin-top: 6px;
+  }
+
+  .sr-x-month-label {
+    flex: 1;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .sr-x-sep {
+    width: 5px; /* matches sr-month-sep width + margins */
+    flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -869,6 +1027,60 @@
     </div>
     <div class="activity-legend" id="activityLegend"></div>
   </div>
+
+  <!-- SR chart -->
+  <div class="activity-section" id="srSection" style="display:none">
+    <div class="activity-divider">
+      <div class="pool-divider-line"></div>
+      <span class="pool-divider-label">avg star rating — past year</span>
+      <div class="pool-divider-line"></div>
+    </div>
+    <div class="sr-controls">
+      <div class="sr-control-group">
+        <label class="search-label" for="srMinScore">Min score</label>
+        <input type="number" id="srMinScore" class="sr-input" value="500000" min="0" max="1000000" step="10000"/>
+      </div>
+      <div class="sr-control-group">
+        <label class="search-label" for="srCatSelect">Category</label>
+        <select id="srCatSelect" class="sr-select">
+          <option value="overall">Overall</option>
+          <optgroup label="NM">
+            <option value="nm1">nm1</option>
+            <option value="nm2">nm2</option>
+            <option value="nm3">nm3</option>
+            <option value="nm4">nm4</option>
+            <option value="nm5/6">nm5/6</option>
+          </optgroup>
+          <optgroup label="HD">
+            <option value="hd1">hd1</option>
+            <option value="hd2">hd2</option>
+          </optgroup>
+          <optgroup label="HR">
+            <option value="hr1">hr1</option>
+            <option value="hr2">hr2</option>
+            <option value="hr3">hr3</option>
+          </optgroup>
+          <optgroup label="DT">
+            <option value="dt1">dt1</option>
+            <option value="dt2/3">dt2/3</option>
+          </optgroup>
+          <optgroup label="FM">
+            <option value="fm">fm</option>
+          </optgroup>
+          <optgroup label="TB">
+            <option value="tb">tb</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+    <div class="sr-chart-wrap">
+      <div class="sr-y-axis" id="srYAxis"></div>
+      <div class="sr-chart-inner">
+        <div class="sr-chart" id="srChart"></div>
+        <div class="sr-x-labels" id="srXLabels"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -895,10 +1107,10 @@ const SCORE_TABS = [
   { name: 'dt2/3', gid: '1353339214' },
 ];
 const CACHE_KEY_POOLS  = 'mpool_pools_v1';
-const CACHE_KEY_SCORES = 'mpool_scores_v7';
+const CACHE_KEY_SCORES = 'mpool_scores_v9';
 const CACHE_TTL_POOLS  = 60 * 60 * 1000;  // 1 hour (pools rarely change)
 const CACHE_TTL_SCORES = 10 * 60 * 1000;  // 10 minutes (scores update often)
-// Cols (0-indexed): B=1 image, C=2 name, D=3 score, E=4 difficulty, F=5 bpm, I=8 map ID
+// Cols (0-indexed): C=2 name, D=3 score, E=4 sr★, F=5 bpm, G=6 comment, H=7 osu URL, I=8 map ID
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let poolsData = [];
@@ -1051,6 +1263,7 @@ async function fetchScoresData() {
             cat:        tab.name.replace(/[\d\/].*/, '').toLowerCase(),
             tabName:    tab.name,
             mapId:      mapId || '',
+            sr:         parseFloat((row[4] || '').replace(/[^0-9.]/g, '')) || 0,
             image:      beatmapsetIdEntry ? `https://assets.ppy.sh/beatmaps/${beatmapsetIdEntry}/covers/cover.jpg` : '',
             name:       (row[2] || '').trim(),
             score:      (row[3] || '').trim(),
@@ -1072,6 +1285,7 @@ async function fetchScoresData() {
           image:      beatmapsetId
                         ? `https://assets.ppy.sh/beatmaps/${beatmapsetId}/covers/cover.jpg`
                         : '',
+          sr:         parseFloat((row[4] || '').replace(/[^0-9.]/g, '')) || 0,
           name:       (row[2] || '').trim(),
           score:      (row[3] || '').trim(),
           difficulty: (row[4] || '').trim(),
@@ -1114,6 +1328,7 @@ async function init() {
     scoresMap = cachedScores.data;
     chartEntries = cachedScores.entries || [];
     renderActivityChart();
+    setupSRChart();
   }
 
   // Start timer
@@ -1156,6 +1371,7 @@ async function init() {
           saveScoresCache(data);
           updateCacheBadge('Scores', null, CACHE_TTL_SCORES);
           renderActivityChart(); // update chart with fresh data
+          renderSRChart();
         })
         .catch(e => {
           if (cachedScores) { scoresMap = cachedScores.data; updateCacheBadge('Scores', cachedScores.ts, CACHE_TTL_SCORES); }
@@ -1178,7 +1394,7 @@ async function init() {
   setStatus(`${poolsData.length} pools · ${Object.keys(scoresMap).length} scores indexed${suffix}`, 'ok');
   setupSearch();
   // If no cache existed at all on first-ever load, render chart now (fresh fetch already fired renderActivityChart above)
-  if (!cachedScores && !needScores) renderActivityChart();
+  if (!cachedScores && !needScores) { renderActivityChart(); setupSRChart(); }
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
@@ -1525,6 +1741,7 @@ async function fetchScoresData() {
           cat:      tab.name.replace(/[\d\/].*/, '').toLowerCase(),
           tabName:  tab.name,
           mapId:    mapId || '',
+          sr:       parseFloat((row[4] || '').replace(/[^0-9.]/g, '')) || 0,
           image:    beatmapsetIdEntry ? `https://assets.ppy.sh/beatmaps/${beatmapsetIdEntry}/covers/cover.jpg` : '',
           name:     (row[2] || '').trim(),
           score:    (row[3] || '').trim(),
@@ -1546,6 +1763,7 @@ async function fetchScoresData() {
         image:      beatmapsetId
                       ? `https://assets.ppy.sh/beatmaps/${beatmapsetId}/covers/cover.jpg`
                       : '',
+        sr:         parseFloat((row[4] || '').replace(/[^0-9.]/g, '')) || 0,
         name:       (row[2] || '').trim(),
         score:      (row[3] || '').trim(),
         difficulty: (row[4] || '').trim(),
@@ -1955,6 +2173,205 @@ function handleModalBackdropClick(e) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeScoreModal();
 });
+
+// ─── SR CHART ────────────────────────────────────────────────────────────────
+function getQuarterBounds(year, month) {
+  // Returns 4 non-overlapping quarters for a given year/month (0-indexed month)
+  // Each quarter spans ~7-8 days, no overlap, covering full month
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const q = Math.floor(daysInMonth / 4);
+  const r = daysInMonth % 4;
+  // Distribute remainder days across first quarters
+  const quarters = [];
+  let day = 1;
+  for (let i = 0; i < 4; i++) {
+    const len = q + (i < r ? 1 : 0);
+    const start = new Date(year, month, day);
+    const end   = new Date(year, month, day + len - 1);
+    quarters.push({ start, end, label: `Q${i+1}` });
+    day += len;
+  }
+  return quarters;
+}
+
+// Quarter colors for "overall" mode — varied palette, one per quarter slot (0-3)
+const QUARTER_COLORS = ['#7eb8f7', '#b47ef7', '#7ef7c8', '#f7a87e'];
+
+// Color for a specific named tab
+function tabColor(tabName) {
+  const cat = tabName.replace(/[\d\/].*/, '').toLowerCase();
+  return CAT_COLORS[cat] || 'var(--accent)';
+}
+
+function renderSRChart() {
+  const section   = document.getElementById('srSection');
+  const chartEl   = document.getElementById('srChart');
+  const xLabelsEl = document.getElementById('srXLabels');
+  const yAxisEl   = document.getElementById('srYAxis');
+  if (!section || !chartEl) return;
+
+  const minScore = parseFloat(document.getElementById('srMinScore').value) || 0;
+  const selCat   = document.getElementById('srCatSelect').value || 'overall';
+
+  // Build 12-month range ending this month
+  const now = new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth() });
+  }
+
+  // Filter entries: need sr > 0, a parseable date, and score >= minScore
+  const eligible = chartEntries.filter(e => {
+    if (!e.date || !e.sr) return false;
+    const scoreVal = parseFloat(String(e.score).replace(/,/g, '').replace(/[^0-9.]/g, ''));
+    if (isNaN(scoreVal) || scoreVal < minScore) return false;
+    if (selCat === 'overall') return e.tabName !== 'hd2';
+    // Individual tab match (exact tabName)
+    return e.tabName === selCat;
+  });
+
+  // Build per-quarter averages
+  const allQuarters = [];
+  months.forEach(({ year, month }) => {
+    const quarters = getQuarterBounds(year, month);
+    quarters.forEach((q, qi) => {
+      const matches = eligible.filter(e => {
+        const d = parseScoreDate(e.date);
+        if (!d) return false;
+        d.setHours(0, 0, 0, 0);
+        return d >= q.start && d <= q.end;
+      });
+      const avg = matches.length
+        ? matches.reduce((s, e) => s + e.sr, 0) / matches.length
+        : null;
+      allQuarters.push({ year, month, qi, start: q.start, end: q.end, avg, count: matches.length });
+    });
+  });
+
+  // Y-axis range
+  const validAvgs = allQuarters.map(q => q.avg).filter(v => v !== null);
+  if (validAvgs.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  const maxSR = Math.ceil(Math.max(...validAvgs) + 0.5);
+  const minSR = Math.max(0, Math.floor(Math.min(...validAvgs) - 0.5));
+  const range = maxSR - minSR || 1;
+
+  // Y-axis labels
+  yAxisEl.innerHTML = '';
+  for (let i = 4; i >= 0; i--) {
+    const val = minSR + (range * i / 4);
+    const lbl = document.createElement('div');
+    lbl.className = 'sr-y-label';
+    lbl.textContent = val.toFixed(1) + '★';
+    yAxisEl.appendChild(lbl);
+  }
+
+  // Clear and rebuild chart + labels
+  chartEl.innerHTML = '';
+  xLabelsEl.innerHTML = '';
+
+  // Gridlines
+  for (let i = 0; i <= 4; i++) {
+    const gl = document.createElement('div');
+    gl.className = 'sr-gridline';
+    gl.style.bottom = (i / 4 * 100) + '%';
+    chartEl.appendChild(gl);
+  }
+
+  const tooltip = document.getElementById('activityTooltip');
+  function showTip(e, html) {
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    moveTip(e);
+  }
+  function moveTip(e) {
+    const tw = tooltip.offsetWidth || 160;
+    const th = tooltip.offsetHeight || 80;
+    let x = e.clientX + 14, y = e.clientY - 10;
+    if (x + tw > window.innerWidth - 8) x = e.clientX - tw - 14;
+    if (y + th > window.innerHeight - 8) y = e.clientY - th - 10;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  }
+  function hideTip() { tooltip.style.display = 'none'; }
+
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const isOverall = selCat === 'overall';
+  const fixedColor = isOverall ? null : tabColor(selCat);
+
+  months.forEach(({ year, month }, mi) => {
+    const group = document.createElement('div');
+    group.className = 'sr-month-group';
+
+    const barsRow = document.createElement('div');
+    barsRow.className = 'sr-quarter-bars';
+
+    allQuarters.filter(q => q.year === year && q.month === month).forEach((q, qi) => {
+      const bar = document.createElement('div');
+      const color = isOverall ? QUARTER_COLORS[qi % QUARTER_COLORS.length] : fixedColor;
+
+      if (q.avg !== null) {
+        const heightPct = ((q.avg - minSR) / range) * 100;
+        bar.className = 'sr-bar';
+        bar.style.height = Math.max(heightPct, 2) + '%';
+        bar.style.background = color;
+
+        const dateRange = `${q.start.toLocaleDateString('en-US',{month:'short',day:'numeric'})}–${q.end.toLocaleDateString('en-US',{day:'numeric'})}`;
+        bar.addEventListener('mouseenter', e => showTip(e, `
+          <div style="color:var(--text-bright);margin-bottom:4px">${MONTH_NAMES[month]} ${year} Q${qi+1}</div>
+          <div style="color:var(--text-dim);font-size:0.65rem;margin-bottom:6px">${dateRange}</div>
+          <div><span style="color:${color}">avg SR</span>  <span style="color:var(--text-bright)">${q.avg.toFixed(2)}★</span></div>
+          <div style="color:var(--text-dim)">maps  ${q.count}</div>
+        `));
+        bar.addEventListener('mousemove', moveTip);
+        bar.addEventListener('mouseleave', hideTip);
+      } else {
+        bar.className = 'sr-bar empty';
+        bar.style.height = '100%';
+        bar.addEventListener('mouseenter', e => showTip(e,
+          `<div style="color:var(--text-bright);margin-bottom:2px">${MONTH_NAMES[month]} ${year} Q${qi+1}</div><div style="color:var(--text-dim)">no data</div>`
+        ));
+        bar.addEventListener('mousemove', moveTip);
+        bar.addEventListener('mouseleave', hideTip);
+      }
+
+      barsRow.appendChild(bar);
+    });
+
+    group.appendChild(barsRow);
+    chartEl.appendChild(group);
+
+    if (mi < months.length - 1) {
+      const sep = document.createElement('div');
+      sep.className = 'sr-month-sep';
+      chartEl.appendChild(sep);
+    }
+
+    const xl = document.createElement('div');
+    xl.className = 'sr-x-month-label';
+    xl.textContent = `${MONTH_NAMES[month]} ${String(year).slice(2)}`;
+    xLabelsEl.appendChild(xl);
+
+    if (mi < months.length - 1) {
+      const xs = document.createElement('div');
+      xs.className = 'sr-x-sep';
+      xLabelsEl.appendChild(xs);
+    }
+  });
+}
+
+function setupSRChart() {
+  renderSRChart();
+  document.getElementById('srMinScore').addEventListener('input', debounce(renderSRChart, 300));
+  document.getElementById('srCatSelect').addEventListener('change', renderSRChart);
+}
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
 
 // ─── START ────────────────────────────────────────────────────────────────────
 init();
