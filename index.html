@@ -6,6 +6,8 @@
 <title>angel devil's pool</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cedarville+Cursive&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #1a1f2e;
@@ -35,24 +37,26 @@
     font-family: 'DM Sans', sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
+    position: relative;
   }
 
-  body::before {
-    content: '';
+
+  #bgImage {
     position: fixed;
     inset: 0;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 40px 40px;
-    opacity: 0.12;
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    opacity: 0;
     pointer-events: none;
-    z-index: 0;
+    z-index: 2;
+    transition: opacity 0s ease;
   }
+
 
   .container {
     position: relative;
-    z-index: 1;
+    z-index: 4;
     max-width: 1000px;
     margin: 0 auto;
     padding: 48px 24px 80px;
@@ -68,12 +72,12 @@
   }
 
   h1 {
-    font-family: 'Rajdhani', sans-serif;
+    font-family: 'Cedarville Cursive', cursive;
     font-size: 2.8rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-weight: 400;
+    letter-spacing: 0.01em;
     color: var(--text-bright);
-    text-transform: uppercase;
+    text-transform: none;
   }
 
   .version-tag {
@@ -970,6 +974,31 @@
 </style>
 </head>
 <body>
+<div id="bgImage"></div>
+<script>
+// ── Background images — add more URLs to this array as needed ──────────────
+const BG_IMAGES = [
+  'https://files.catbox.moe/4q94vw.png',
+  'https://files.catbox.moe/lbpbju.png',
+  'https://files.catbox.moe/vaecj7.png',
+  // add more here...
+];
+(function() {
+  const el = document.getElementById('bgImage');
+  const idx = Math.floor(Math.random() * BG_IMAGES.length);
+  const src = BG_IMAGES[idx];
+  console.log(`[BG] Attempting image ${idx}: ${src}`);
+  const probe = new Image();
+  probe.onload = () => {
+    console.log(`[BG] Loaded successfully: ${src} (${probe.naturalWidth}x${probe.naturalHeight})`);
+    el.style.backgroundImage = `url('${src}')`;
+    el.style.opacity = '0.5';
+    console.log(`[BG] opacity now: ${el.style.opacity}`);
+  };
+  probe.onerror = () => console.error(`[BG] Failed to load: ${src}`);
+  probe.src = src;
+})();
+</script>
 <div class="activity-tooltip" id="activityTooltip"></div>
 <div id="scoreModalBackdrop" class="score-modal-backdrop" style="display:none" onclick="handleModalBackdropClick(event)">
   <div class="score-modal" id="scoreModal">
@@ -990,10 +1019,10 @@
       <span class="version-tag">BETA</span>
       <span id="cacheBadgeScores" class="cache-badge" onclick="clearScoresCache()" title="Click to clear scores cache">
         <span class="dot" id="cacheDotScores"></span>
-        <span id="cacheLabelScores">SCORES</span>
+        <span id="cacheLabelScores">refresh scores</span>
       </span>
     </div>
-    <p class="subtitle">Search a pool to view its maps and scores</p>
+    <p class="subtitle">database of all the tourney maps i've played</p>
   </header>
 
   <div class="search-section">
