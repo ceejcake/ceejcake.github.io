@@ -802,6 +802,15 @@
   }
 
   /* ── SR Chart ───────────────────────────────────────────────────────────── */
+  .sr-controls-outer {
+    margin-top: 64px;
+    padding-top: 8px;
+  }
+
+  #srSection {
+    margin-top: 0;
+    padding-top: 0;
+  }
   .sr-controls {
     display: flex;
     gap: 24px;
@@ -1028,8 +1037,8 @@
     <div class="activity-legend" id="activityLegend"></div>
   </div>
 
-  <!-- SR chart -->
-  <div class="activity-section" id="srSection" style="display:none">
+  <!-- SR chart controls — always visible so listeners always attach -->
+  <div class="sr-controls-outer" id="srControlsOuter" style="display:none">
     <div class="activity-divider">
       <div class="pool-divider-line"></div>
       <span class="pool-divider-label">avg star rating — past year</span>
@@ -1073,6 +1082,10 @@
         </select>
       </div>
     </div>
+  </div>
+
+  <!-- SR chart body — shown once data is ready -->
+  <div class="activity-section" id="srSection" style="display:none">
     <div class="sr-chart-wrap">
       <div class="sr-y-axis" id="srYAxis"></div>
       <div class="sr-chart-inner">
@@ -1328,7 +1341,7 @@ async function init() {
     scoresMap = cachedScores.data;
     chartEntries = cachedScores.entries || [];
     renderActivityChart();
-    setupSRChart();
+    renderSRChart();
   }
 
   // Start timer
@@ -1394,7 +1407,7 @@ async function init() {
   setStatus(`${poolsData.length} pools · ${Object.keys(scoresMap).length} scores indexed${suffix}`, 'ok');
   setupSearch();
   // If no cache existed at all on first-ever load, render chart now (fresh fetch already fired renderActivityChart above)
-  if (!cachedScores && !needScores) { renderActivityChart(); setupSRChart(); }
+  if (!cachedScores && !needScores) { renderActivityChart(); renderSRChart(); }
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
@@ -2251,8 +2264,14 @@ function renderSRChart() {
 
   // Y-axis range
   const validAvgs = allQuarters.map(q => q.avg).filter(v => v !== null);
-  if (validAvgs.length === 0) { section.style.display = 'none'; return; }
+  const outer = document.getElementById('srControlsOuter');
+  if (validAvgs.length === 0) {
+    section.style.display = 'none';
+    if (outer) outer.style.display = 'none';
+    return;
+  }
   section.style.display = '';
+  if (outer) outer.style.display = '';
 
   const maxSR = Math.ceil(Math.max(...validAvgs) + 0.5);
   const minSR = Math.max(0, Math.floor(Math.min(...validAvgs) - 0.5));
@@ -2362,8 +2381,7 @@ function renderSRChart() {
   });
 }
 
-function setupSRChart() {
-  renderSRChart();
+function setupSRChartControls() {
   document.getElementById('srMinScore').addEventListener('input', debounce(renderSRChart, 300));
   document.getElementById('srCatSelect').addEventListener('change', renderSRChart);
 }
@@ -2374,6 +2392,7 @@ function debounce(fn, ms) {
 }
 
 // ─── START ────────────────────────────────────────────────────────────────────
+setupSRChartControls();
 init();
 </script>
 </body>
