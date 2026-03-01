@@ -988,10 +988,6 @@
     <div class="logo-row">
       <h1>angel devil's pool viewer</h1>
       <span class="version-tag">BETA</span>
-      <span id="cacheBadgePools" class="cache-badge" onclick="clearPoolsCache()" title="Click to clear pools cache">
-        <span class="dot" id="cacheDotPools"></span>
-        <span id="cacheLabelPools">POOLS</span>
-      </span>
       <span id="cacheBadgeScores" class="cache-badge" onclick="clearScoresCache()" title="Click to clear scores cache">
         <span class="dot" id="cacheDotScores"></span>
         <span id="cacheLabelScores">SCORES</span>
@@ -1099,12 +1095,6 @@
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const PROXY        = 'https://script.google.com/macros/s/AKfycbw0SPAR00YU0X2Z1RplLSj5ExUvUtDJEzwXScy5JVbD0GhrsZbRIl0bvNjAt_h0uaXn/exec';
-const POOL_TABS = [
-  { name: '1500', gid: '0' },
-  { name: '1600', gid: '1078875662' },
-  { name: '1700', gid: '1788254711' },
-  { name: '1800', gid: '1253646153' },
-];
 const SCORE_TABS = [
   { name: 'nm1',   gid: '868418815' },
   { name: 'nm2',   gid: '458630398' },
@@ -1119,10 +1109,8 @@ const SCORE_TABS = [
   { name: 'dt1',   gid: '1284559838' },
   { name: 'dt2/3', gid: '1353339214' },
 ];
-const CACHE_KEY_POOLS  = 'mpool_pools_v1';
 const CACHE_KEY_SCORES = 'mpool_scores_v9';
-const CACHE_TTL_POOLS  = 60 * 60 * 1000;  // 1 hour (pools rarely change)
-const CACHE_TTL_SCORES = 10 * 60 * 1000;  // 10 minutes (scores update often)
+const CACHE_TTL_SCORES = 10 * 60 * 1000;  // 10 minutes
 // Cols (0-indexed): C=2 name, D=3 score, E=4 sr★, F=5 bpm, G=6 comment, H=7 osu URL, I=8 map ID
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -1146,26 +1134,12 @@ function parseCSV(text) {
 }
 
 // ─── CACHE ────────────────────────────────────────────────────────────────────
-function savePoolsCache(data) {
-  try { localStorage.setItem(CACHE_KEY_POOLS, JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
-}
-
-function loadPoolsCache() {
-  try { const r = localStorage.getItem(CACHE_KEY_POOLS); return r ? JSON.parse(r) : null; } catch(e) { return null; }
-}
-
 function saveScoresCache(data) {
   try { localStorage.setItem(CACHE_KEY_SCORES, JSON.stringify({ ts: Date.now(), data, entries: chartEntries })); } catch(e) {}
 }
 
 function loadScoresCache() {
   try { const r = localStorage.getItem(CACHE_KEY_SCORES); return r ? JSON.parse(r) : null; } catch(e) { return null; }
-}
-
-function clearPoolsCache() {
-  localStorage.removeItem(CACHE_KEY_POOLS);
-  setStatus('Pools cache cleared — reloading...', 'loading');
-  location.reload();
 }
 
 function clearScoresCache() {
@@ -1210,45 +1184,30 @@ async function fetchCSV(url) {
 
 
 async function fetchPoolsData() {
-  const allTabResults = [];
+  const POOL_HEADERS = ['nm1','nm2','nm3','nm4','nm5','nm6','hd1','hd2','hd3','hr1','hr2','hr3','dt1','dt2','dt3','fm1','fm2','fm3','tb'];
 
-  const tasks = POOL_TABS.map((tab, tabIndex) => pool(async () => {
-    const url = `${PROXY}?type=pools&gid=${tab.gid}`;
-    try {
-      const text = await fetchCSV(url);
-      const rows = parseCSV(text);
-      if (rows.length < 2) return;
+  const r = await fetch('mappools.txt', { cache: 'no-cache' });
+  if (!r.ok) throw new Error(`mappools.txt HTTP ${r.status}`);
+  const text = await r.text();
 
-      const headers = rows[0];
-      const tabPools = [];
+  const pools = [];
+  for (const line of text.trim().split('\n')) {
+    const cols = line.split('\t');
+    const elo  = (cols[0] || '').trim();
+    const name = (cols[1] || '').trim();
+    if (!name) continue;
 
-      for (let r = 1; r < rows.length; r++) {
-        const row  = rows[r];
-        const elo  = (row[0] || '').trim();
-        const name = (row[1] || '').trim();
-        if (!name && row.every(c => !c)) continue;
+    const mapsByCategory = {};
+    POOL_HEADERS.forEach((cat, i) => {
+      const mapId = (cols[i + 2] || '').trim();
+      if (!mapId) return;
+      if (!mapsByCategory[cat]) mapsByCategory[cat] = [];
+      mapsByCategory[cat].push(mapId);
+    });
 
-        const mapsByCategory = {};
-        for (let c = 2; c < headers.length; c++) {
-          const cat   = (headers[c] || '').trim();
-          const mapId = (row[c] || '').trim();
-          if (!cat || !mapId) continue;
-          if (!mapsByCategory[cat]) mapsByCategory[cat] = [];
-          mapsByCategory[cat].push(mapId);
-        }
-        tabPools.push({ name: name || `Pool ${r}`, elo, mapsByCategory });
-      }
-
-      allTabResults[tabIndex] = tabPools;
-    } catch (e) {
-      console.warn('Failed pools tab', tab.name, e);
-    }
-  }));
-
-  await Promise.all(tasks);
-
-  // Flatten in original tab order
-  return allTabResults.flat().filter(Boolean);
+    pools.push({ name, elo, mapsByCategory });
+  }
+  return pools;
 }
 
 async function fetchScoresData() {
@@ -1330,13 +1289,10 @@ async function fetchScoresData() {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 async function init() {
-  const cachedPools  = loadPoolsCache();
   const cachedScores = loadScoresCache();
-
-  const needPools  = !cachedPools  || (Date.now() - cachedPools.ts)  >= CACHE_TTL_POOLS;
   const needScores = !cachedScores || (Date.now() - cachedScores.ts) >= CACHE_TTL_SCORES;
 
-  // ── Render chart immediately from cache so it's always visible on page load ──
+  // Render charts immediately from cached scores while fresh data loads
   if (cachedScores) {
     scoresMap = cachedScores.data;
     chartEntries = cachedScores.entries || [];
@@ -1346,20 +1302,15 @@ async function init() {
 
   // Start timer
   const startTime = Date.now();
-  let timerInterval = null;
-  if (needPools || needScores) {
-    timerInterval = setInterval(() => {
-      const el = document.getElementById('statusBar');
-      if (el) {
-        const secs = ((Date.now() - startTime) / 1000).toFixed(1);
-        // preserve existing message, just append time
-        el.dataset.timer = secs;
-        const base = el.dataset.base || el.textContent.replace(/ \(\d+\.\ds\)$/, '');
-        el.dataset.base = base;
-        el.textContent = `${base} (${secs}s)`;
-      }
-    }, 100);
-  }
+  let timerInterval = setInterval(() => {
+    const el = document.getElementById('statusBar');
+    if (el) {
+      const secs = ((Date.now() - startTime) / 1000).toFixed(1);
+      const base = el.dataset.base || el.textContent.replace(/ \(\d+\.\ds\)$/, '');
+      el.dataset.base = base;
+      el.textContent = `${base} (${secs}s)`;
+    }
+  }, 100);
 
   const setStatusTimed = (msg, type) => {
     setStatus(msg, type);
@@ -1367,34 +1318,32 @@ async function init() {
     if (el) el.dataset.base = msg;
   };
 
-  // Fetch pools and scores in parallel where possible
-  const poolsPromise = needPools
-    ? fetchPoolsData()
-        .then(data => { poolsData = data; savePoolsCache(data); updateCacheBadge('Pools', null, CACHE_TTL_POOLS); })
-        .catch(e => {
-          if (cachedPools) { poolsData = cachedPools.data; updateCacheBadge('Pools', cachedPools.ts, CACHE_TTL_POOLS); }
-          else throw e;
-        })
-    : Promise.resolve().then(() => { poolsData = cachedPools.data; updateCacheBadge('Pools', cachedPools.ts, CACHE_TTL_POOLS); });
-
-  const scoresPromise = needScores
-    ? fetchScoresData()
-        .then(data => {
-          scoresMap = data;
-          saveScoresCache(data);
-          updateCacheBadge('Scores', null, CACHE_TTL_SCORES);
-          renderActivityChart(); // update chart with fresh data
-          renderSRChart();
-        })
-        .catch(e => {
-          if (cachedScores) { scoresMap = cachedScores.data; updateCacheBadge('Scores', cachedScores.ts, CACHE_TTL_SCORES); }
-        })
-    : Promise.resolve().then(() => { scoresMap = cachedScores.data; updateCacheBadge('Scores', cachedScores.ts, CACHE_TTL_SCORES); });
-
   setStatusTimed('Fetching data...', 'loading');
 
   try {
-    await Promise.all([poolsPromise, scoresPromise]);
+    // Scores: cached with 10-min TTL
+    const scoresPromise = needScores
+      ? fetchScoresData().then(data => {
+          scoresMap = data;
+          saveScoresCache(data);
+          updateCacheBadge('Scores', null, CACHE_TTL_SCORES);
+          renderActivityChart();
+          renderSRChart();
+        }).catch(e => {
+          if (cachedScores) { scoresMap = cachedScores.data; updateCacheBadge('Scores', cachedScores.ts, CACHE_TTL_SCORES); }
+          else throw e;
+        })
+      : Promise.resolve().then(() => {
+          scoresMap = cachedScores.data;
+          updateCacheBadge('Scores', cachedScores.ts, CACHE_TTL_SCORES);
+        });
+
+    // Pools: always fresh from static file — failure is non-fatal
+    const poolsPromise = fetchPoolsData()
+      .then(data => { poolsData = data; })
+      .catch(e => { console.warn('mappools.txt failed:', e.message); });
+
+    await Promise.all([scoresPromise, poolsPromise]);
   } catch(e) {
     clearInterval(timerInterval);
     setStatus(`Error: ${e.message}`, 'error');
@@ -1403,10 +1352,8 @@ async function init() {
 
   clearInterval(timerInterval);
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  const suffix = (needPools || needScores) ? ` — loaded in ${elapsed}s` : '';
-  setStatus(`${poolsData.length} pools · ${Object.keys(scoresMap).length} scores indexed${suffix}`, 'ok');
+  setStatus(`${poolsData.length} pools · ${Object.keys(scoresMap).length} scores indexed — loaded in ${elapsed}s`, 'ok');
   setupSearch();
-  // If no cache existed at all on first-ever load, render chart now (fresh fetch already fired renderActivityChart above)
   if (!cachedScores && !needScores) { renderActivityChart(); renderSRChart(); }
 }
 
@@ -1798,45 +1745,6 @@ async function fetchScoresData() {
   return result;
 }
 
-
-// ─── REPLACE fetchPoolsData ──────────────────────────────────────────────────
-async function fetchPoolsData() {
-  const result = [];
-
-  // ONE request fetches ALL 4 pool tabs
-  const batchData = await fetchBatchCSV('pools', POOL_TABS);
-
-  for (const tab of POOL_TABS) {
-    const csv = batchData[tab.gid];
-    if (!csv) {
-      console.warn(`[${tab.name}] no data in batch for gid ${tab.gid}`);
-      continue;
-    }
-
-    const rows = parseCSV(csv);
-    if (rows.length < 2) continue;
-    const headers = rows[0];
-
-    for (let r = 1; r < rows.length; r++) {
-      const row  = rows[r];
-      const elo  = (row[0] || '').trim();
-      const name = (row[1] || '').trim();
-      if (!name && row.every(c => !c)) continue;
-
-      const mapsByCategory = {};
-      for (let c = 2; c < headers.length; c++) {
-        const cat   = (headers[c] || '').trim();
-        const mapId = (row[c] || '').trim();
-        if (!cat || !mapId) continue;
-        if (!mapsByCategory[cat]) mapsByCategory[cat] = [];
-        mapsByCategory[cat].push(mapId);
-      }
-      result.push({ name: name || `Pool ${r}`, elo, mapsByCategory });
-    }
-  }
-
-  return result;
-}
 
 // ─── ACTIVITY CHART ──────────────────────────────────────────────────────────
 const CAT_COLORS = {
