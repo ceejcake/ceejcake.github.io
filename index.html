@@ -2354,9 +2354,20 @@ function selectPool(idx) {
     container.appendChild(block);
   }
 
+  // Map pool header category names to their corresponding score tab names
+  const POOL_CAT_TO_TAB = {
+    'nm1': 'nm1', 'nm2': 'nm2', 'nm3': 'nm3', 'nm4': 'nm4',
+    'nm5': 'nm5/6', 'nm6': 'nm5/6',
+    'hd1': 'hd1', 'hd2': 'hd2', 'hd3': 'hd2',
+    'hr1': 'hr1', 'hr2': 'hr2', 'hr3': 'hr3',
+    'dt1': 'dt1', 'dt2': 'dt2/3', 'dt3': 'dt2/3',
+    'fm1': 'fm', 'fm2': 'fm', 'fm3': 'fm',
+    'tb':  'tb',
+  };
+
   for (const [cat, mapIds] of Object.entries(pool.mapsByCategory)) {
     if (!mapIds.length) continue;
-    const sheetName = cat.toLowerCase().replace(/\/.*/, '').replace(/\s/g, '');
+    const sheetName = POOL_CAT_TO_TAB[cat.toLowerCase()] || cat.toLowerCase().replace(/\/.*/, '').replace(/\s/g, '');
     const matchedIds = mapIds.filter(id => scoresMap[`${sheetName}:${id}`]);
     if (!matchedIds.length) continue;
     const catKey = getCatKey(cat);
